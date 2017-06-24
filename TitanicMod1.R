@@ -95,3 +95,60 @@ test$PassengerId
 gbmsub <- test[c("PassengerId", "Survived")]
 
 write.csv(gbmsub, file = "gbmsub.csv")
+
+
+#XGBoost Algorithm
+library(Matrix)
+
+
+sparse_matrix <- sparse.model.matrix(Survived ~ .-1, data = train[c("Survived", "Pclass", "Sex", "Age", "SibSp", "Parch", "Ticket", "Fare", "Cabin", "Embarked")])
+
+##colnames(train)
+
+##titanicmod1 <- glm(Survived ~  Pclass + Sex + Age + SibSp + Parch + Fare  + Embarked, data = train, family = binomial)
+
+library(xgboost)
+library(readr)
+library(stringr)
+library(caret)
+library(car)
+
+str(train)
+train$SexNew <- ifelse(train$Sex == "male", 1, 0)
+test$SexNew <- ifelse(test$Sex == "male", 1, 0)
+
+
+train_reqd <- train[c("Pclass", "SexNew", "Age", "SibSp")]
+test_reqd <- test[c("Pclass", "SexNew", "Age", "SibSp")]
+
+y <- train$Survived
+
+xgb <- xgboost(data = data.matrix(train_reqd), max.depth = 2, eta = 1, nthread = 2, nround = 2, objective = "binary:logistic")
+
+
+xgb2 <- xgboost(data = data.matrix(train_reqd), 
+               label = y, 
+               eta = 0.1,
+               max_depth = 15, 
+               nround=25, 
+               subsample = 0.5,
+               num_class = 12,
+               nthread = 3
+)
+
+
+
+summary(xgb2)
+
+pred <- predict(xgb, data.matrix(train_reqd))
+pred2 <- predict(xgb, data.matrix(train_reqd))
+
+pred_test <- predict(xgb, data.matrix(test_reqd))
+pred_test2 <- predict(xgb2, data.matrix(test_reqd))
+
+output <- cbind(test$PassengerId,as.integer(pred_test2 >= 0.5))
+
+colnames(output) <- c("PassengerId", "Survived")
+
+write.csv(output, file = "./data/titanicxgb.csv", row.names = FALSE)
+
